@@ -1,9 +1,9 @@
 #!/bin/sh
 # UniVPN uninstaller: removes UniVPN completely from this computer.
 #
-#   sudo /opt/UniVPN/UniVPNUninstall          # asks before removing
-#   sudo /opt/UniVPN/UniVPNUninstall --yes    # no question
-#   /opt/UniVPN/UniVPNUninstall --keep-certificates   # keep a copy of *.p12/*.pfx
+#   sudo /opt/UniVPN/uninstall.sh          # asks before removing
+#   sudo /opt/UniVPN/uninstall.sh --yes    # no question
+#   /opt/UniVPN/uninstall.sh --keep-certificates   # keep a copy of *.p12/*.pfx
 #
 # Run without root it re-runs itself through pkexec (or sudo).
 set -u

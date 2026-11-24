@@ -14,7 +14,7 @@ This repository contains a full, portable copy of **UniVPN (v10781.21.0.0831)** 
 | 4 | **Bypass Untrusted Server Certificate Dialog** | `UniVPN` | `0xe4640` | `48 8b 45 58 8b 40 40` | `e9 4b 01 00 00 90 90` | Jumps (`jmp 0xe4790`) directly to continue handler, bypassing "Safety warning : untrusted VPN server certificate!" prompt completely. |
 | 5 | **Remove "successfully connect!" Popup** | `UniVPN` | `0xe5825` | `e8 e6 10 fe ff` | `90 90 90 90 90` | NOPs `call 0xc6910`, removing the redundant standalone popup window on login success. |
 | 6 | **Suppress "Connecting..." Tray Notifications** | `UniVPN` | 13 offsets | `e8 ...` | `90 90 90 90 90` (x13) | NOPs out all 13 call sites emitting `UI_MAIN_CONNECTING`, silencing repetitive connecting bubbles. |
-| 7 | **Fix Certificate Dropdown Path Truncation** (*New Connection* page only; the Login dialog list comes from the service, see Option B step 2) | `UniVPN` | `0x80246` | `be 1d 00 00 00` | `be 17 00 00 00` | Changes hardcoded length from 29 to 23 for `/opt/UniVPN/certificate`, preventing null byte truncation and loading `.p12`/`.pfx` files into dropdowns. Also fixes path lengths at `0x6011d`, `0x603f7` (certinfo.txt: `1e` -> `18`) and `0x6cf0e` (image: `17` -> `11`). |
+| 7 | **Fix Certificate Dropdown Path Truncation** (*New Connection* page only; the Login dialog list comes from the service, see Option B) | `UniVPN` | `0x80246` | `be 1d 00 00 00` | `be 17 00 00 00` | Changes hardcoded length from 29 to 23 for `/opt/UniVPN/certificate`, preventing null byte truncation and loading `.p12`/`.pfx` files into dropdowns. Also fixes path lengths at `0x6011d`, `0x603f7` (certinfo.txt: `1e` -> `18`) and `0x6cf0e` (image: `17` -> `11`). |
 | 8 | **Remove Hover/Click Overlay on Export & Import** | `theme.qss` | — | — | — | Sets transparent background without borders across `:hover`, `:pressed`, and `:disabled` states for `pb_output` and `pb_input`. |
 
 ---
@@ -65,65 +65,44 @@ Simply run the included portable launcher:
 This automatically configures `LD_LIBRARY_PATH`, Qt plugin path, sets `Fusion` light theme override, and applies `theme.qss`.
 
 ### Option B: System-Wide Installation (To `/opt/UniVPN`)
-1. Copy the directory to `/opt/UniVPN`:
-   ```bash
-   sudo cp -r /path/to/UniVPN /opt/UniVPN
-   ```
-2. Point the service at it. `serviceclient/UniVPNCS` (the root service) does
-   **not** use `/opt/UniVPN`: it lists certificates for the **Login dialog**
-   (`cb_CertList` and its refresh button) and reads/writes certificate passwords
-   (`certinfo.txt`) under the UOS app layout
-   `/opt/apps/cn.com.huawei-security-commercial-alliance.univpn/files/`. Without
-   this link the Login dropdown stays empty and the certificate password on the
-   *New Connection* page fails (`get cert passwd failed][Error open certinfo file`
-   in `log/UniVPN_UniVPNCS_0.log`), while the *New Connection* dropdown (read
-   by the GUI itself) still works:
-   ```bash
-   sudo mkdir -p /opt/apps/cn.com.huawei-security-commercial-alliance.univpn
-   sudo ln -sfn /opt/UniVPN /opt/apps/cn.com.huawei-security-commercial-alliance.univpn/files
-   ```
-3. Let your user write the folders and files the window writes to, and let the
-   service run as root:
-   ```bash
-   sudo mkdir -p /opt/UniVPN/certificate /opt/UniVPN/config /opt/UniVPN/log
-   sudo touch /opt/UniVPN/certinfo.txt /opt/UniVPN/sysconfig.ini
-   sudo chown -R "$USER": /opt/UniVPN/certificate /opt/UniVPN/config /opt/UniVPN/log /opt/UniVPN/certinfo.txt /opt/UniVPN/sysconfig.ini
-   sudo chown root:root /opt/UniVPN/serviceclient/UniVPNCS
-   sudo chmod 4755 /opt/UniVPN/serviceclient/UniVPNCS
-   ```
-4. Place your `.p12` certificate into `/opt/UniVPN/certificate/`. It then shows
-   in both the *New Connection* and the Login dialog dropdowns. If the `.p12`
-   has a password, enter it in the *New Connection* page's certificate
-   **Password (optional)** field; leave it empty for a certificate without one.
-5. Launcher, menu entry and icon (the icon goes into the `hicolor` theme so
-   every launcher, including KDE's *All Applications*, finds it):
-   ```bash
-   sudo install -Dm755 /opt/UniVPN/univpn.sh /usr/local/bin/univpn
-   sudo install -Dm644 /opt/UniVPN/image/logo.png /usr/local/share/icons/hicolor/128x128/apps/univpn.png
-   sudo tee /usr/local/share/applications/univpn.desktop >/dev/null <<'DESKTOP'
-   [Desktop Entry]
-   Type=Application
-   Name=UniVPN
-   Comment=UniVPN VPN client
-   Exec=/usr/local/bin/univpn
-   Icon=univpn
-   Terminal=false
-   Categories=Network;RemoteAccess;
-   StartupWMClass=UniVPN
-   DESKTOP
-   sudo gtk-update-icon-cache -q -t /usr/local/share/icons/hicolor || true
-   ```
+```bash
+./install.sh               # asks for root (pkexec/sudo); installs or updates /opt/UniVPN
+./install.sh --autostart   # also start UniVPN at login
+```
+Then place your `.p12` certificate into `/opt/UniVPN/certificate/`. It shows in
+both the *New Connection* and the Login dialog dropdowns. If the `.p12` has a
+password, enter it in the *New Connection* page's certificate
+**Password (optional)** field; leave it empty for a certificate without one.
 
-### Uninstalling (`UniVPNUninstall`)
+`install.sh` copies the tree (without `.git`, logs, certificates or settings, so
+re-running it keeps yours), stops a running UniVPN, and:
+
+- makes `serviceclient/UniVPNCS` SUID root and gives `certificate/`, `config/`,
+  `log/`, `sysconfig.ini` and `certinfo.txt` to your user;
+- links `/opt/apps/cn.com.huawei-security-commercial-alliance.univpn/files` to
+  `/opt/UniVPN`. `UniVPNCS` (the root service) does **not** use `/opt/UniVPN`:
+  it lists certificates for the **Login dialog** (`cb_CertList` and its refresh
+  button) and reads/writes certificate passwords (`certinfo.txt`) only under
+  that UOS app path. Without the link the Login dropdown stays empty and the
+  certificate password on the *New Connection* page fails
+  (`get cert passwd failed][Error open certinfo file]` in
+  `log/UniVPN_UniVPNCS_0.log`), while the *New Connection* dropdown (read by the
+  GUI itself) still works;
+- moves certificates from the old `/usr/local/UniVPN/certificate`;
+- installs `/usr/local/bin/univpn`, the `univpn` icon in the `hicolor` theme (so
+  every launcher, including KDE's *All Applications*, shows it) and the menu
+  entry `/usr/local/share/applications/univpn.desktop`.
+
+### Uninstalling (`uninstall.sh`)
 Removes UniVPN completely: stops `UniVPN`, `UniVPNCS` and
 `UniVPNPromoteService`, and deletes `/opt/UniVPN`, the `/opt/apps/...univpn`
 link, a legacy `/usr/local/UniVPN`, the `univpn` launcher, menu, autostart and
 icon entries, and each user's `~/.config/autostart/UniVPNA.desktop` and
 `~/.config/cn.com.huawei-security-commercial-alliance.univpn`.
 ```bash
-/opt/UniVPN/UniVPNUninstall                      # asks for root (pkexec/sudo), then confirms
-sudo /opt/UniVPN/UniVPNUninstall --yes           # no confirmation
-/opt/UniVPN/UniVPNUninstall --keep-certificates  # copy *.p12/*.pfx to ~/UniVPN-certificates first
+/opt/UniVPN/uninstall.sh                      # asks for root (pkexec/sudo), then confirms
+sudo /opt/UniVPN/uninstall.sh --yes           # no confirmation
+/opt/UniVPN/uninstall.sh --keep-certificates  # copy *.p12/*.pfx to ~/UniVPN-certificates first
 ```
 
 ---

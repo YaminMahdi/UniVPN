@@ -1,7 +1,9 @@
 #!/bin/bash
 # UniVPN Portable Launcher for Linux
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# Installed as /usr/local/bin/univpn by install.sh: run the /opt/UniVPN tree.
+[ -x "$DIR/UniVPN" ] || DIR=/opt/UniVPN
 cd "$DIR"
 
 export DISPLAY="${DISPLAY:-:0}"
