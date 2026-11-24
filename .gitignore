@@ -2,3 +2,4 @@ log/*
 !log/.gitkeep
 *.log
 *.tmp
+*.p12
