@@ -46,6 +46,13 @@ PATCHES = {
     0x6011d: (b'\xbe\x1e\x00\x00\x00', b'\xbe\x18\x00\x00\x00', "Fix certinfo.txt path length 1"),
     0x603f7: (b'\xbe\x1e\x00\x00\x00', b'\xbe\x18\x00\x00\x00', "Fix certinfo.txt path length 2"),
     0x6cf0e: (b'\xbe\x17\x00\x00\x00', b'\xbe\x11\x00\x00\x00', "Fix image path length"),
+
+    # Feature 9: Keep certinfo.txt (saved .p12 passwords) when the window closes
+    # or UniVPN exits. MainUI deleted it there; with the path-length fix above the
+    # delete started to work and wiped the passwords UniVPNCS stores in it.
+    # NOPs both calls to QFile::remove().
+    0x6016d: (b'\xe8\x9e\x3c\xfc\xff', b'\x90\x90\x90\x90\x90', "Keep certinfo.txt on exit"),
+    0x60447: (b'\xe8\xc4\x39\xfc\xff', b'\x90\x90\x90\x90\x90', "Keep certinfo.txt on window close"),
 }
 
 def check(file_path):
