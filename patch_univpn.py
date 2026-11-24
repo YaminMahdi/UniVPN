@@ -53,6 +53,11 @@ PATCHES = {
     # NOPs both calls to QFile::remove().
     0x6016d: (b'\xe8\x9e\x3c\xfc\xff', b'\x90\x90\x90\x90\x90', "Keep certinfo.txt on exit"),
     0x60447: (b'\xe8\xc4\x39\xfc\xff', b'\x90\x90\x90\x90\x90', "Keep certinfo.txt on window close"),
+
+    # Feature 10: Certificate password field always editable (optional).
+    # ProfileInfoUI disabled the field when UniVPNCS reported the selected .p12
+    # needs no password; NOPs that setEnabled(false) call.
+    0x793d4: (b'\xe8\x37\xa0\xfa\xff', b'\x90\x90\x90\x90\x90', "Certificate password field always editable"),
 }
 
 def check(file_path):

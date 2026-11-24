@@ -17,6 +17,7 @@ This repository contains a full, portable copy of **UniVPN (v10781.21.0.0831)** 
 | 7 | **Fix Certificate Dropdown Path Truncation** (*New Connection* page only; the Login dialog list comes from the service, see Option B) | `UniVPN` | `0x80246` | `be 1d 00 00 00` | `be 17 00 00 00` | Changes hardcoded length from 29 to 23 for `/opt/UniVPN/certificate`, preventing null byte truncation and loading `.p12`/`.pfx` files into dropdowns. Also fixes path lengths at `0x6011d`, `0x603f7` (certinfo.txt: `1e` -> `18`) and `0x6cf0e` (image: `17` -> `11`). |
 | 8 | **Remove Hover/Click Overlay on Export & Import** | `theme.qss` | — | — | — | Sets transparent background without borders across `:hover`, `:pressed`, and `:disabled` states for `pb_output` and `pb_input`. |
 | 9 | **Keep Saved Certificate Passwords** | `UniVPN` | `0x6016d`, `0x60447` | `e8 9e 3c fc ff`, `e8 c4 39 fc ff` | `90 90 90 90 90` (x2) | NOPs the `QFile::remove()` of `/opt/UniVPN/certinfo.txt` on exit and on window close, so the `.p12` password entered on the *New Connection* page survives. |
+| 10 | **Certificate Password Always Editable** | `UniVPN`, `language/*/l_UILabel.ini` | `0x793d4` | `e8 37 a0 fa ff` | `90 90 90 90 90` | NOPs `setEnabled(false)` on `Certificate_password` when `UniVPNCS` reports the `.p12` needs no password, so the *New Connection* field stays editable; its label reads **Password (optional)**. |
 
 ---
 
@@ -63,6 +64,11 @@ NOPed out 5 bytes (`90 90 90 90 90`) at each call site loading `UI_MAIN_CONNECTI
   succeeded because of the relocation length bug; once the length was fixed
   (section 6), closing the window wiped the saved passwords, so a password-
   protected certificate could no longer connect.
+
+### 8. Certificate Password Always Editable (`0x793d4`)
+- **Location:** `ProfileInfoUI` certificate-password check (`[certificate passwd Isneed][msg is`)
+- **Original:** `e8 37 a0 fa ff` (`call QWidget::setEnabled(false)` on `Certificate_password` when the answer is 0)
+- **Patched:** `90 90 90 90 90`; the field is still disabled while *Certificate Authentication* is unchecked.
 
 ---
 
