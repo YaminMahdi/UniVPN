@@ -58,6 +58,18 @@ PATCHES = {
     # ProfileInfoUI disabled the field when UniVPNCS reported the selected .p12
     # needs no password; NOPs that setEnabled(false) call.
     0x793d4: (b'\xe8\x37\xa0\xfa\xff', b'\x90\x90\x90\x90\x90', "Certificate password field always editable"),
+
+    # Feature 11: Certificate names and passwords longer than 31 characters.
+    # ProfileInfoUI copied the .p12 name and password into the request to
+    # UniVPNCS with strncpy_s(dst, 0x20, ...); a longer name (for example
+    # BCC-67402-Ahmad_Umar_Mahdi_with_pass.p12) came out empty, so the password
+    # was never checked or saved and the Login dialog skipped the certificate.
+    # The fields are 0x400 bytes: pass 0x400 as the limit.
+    0x7926d: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate name (password check)"),
+    0x82520: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate name (save)"),
+    0x82543: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate password (save)"),
+    0x87a4c: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate name (save 2)"),
+    0x87a73: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate password (save 2)"),
 }
 
 def check(file_path):

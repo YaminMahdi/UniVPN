@@ -18,6 +18,7 @@ This repository contains a full, portable copy of **UniVPN (v10781.21.0.0831)** 
 | 8 | **Remove Hover/Click Overlay on Export & Import** | `theme.qss` | — | — | — | Sets transparent background without borders across `:hover`, `:pressed`, and `:disabled` states for `pb_output` and `pb_input`. |
 | 9 | **Keep Saved Certificate Passwords** | `UniVPN` | `0x6016d`, `0x60447` | `e8 9e 3c fc ff`, `e8 c4 39 fc ff` | `90 90 90 90 90` (x2) | NOPs the `QFile::remove()` of `/opt/UniVPN/certinfo.txt` on exit and on window close, so the `.p12` password entered on the *New Connection* page survives. |
 | 10 | **Certificate Password Always Editable** | `UniVPN`, `language/*/l_UILabel.ini` | `0x793d4` | `e8 37 a0 fa ff` | `90 90 90 90 90` | NOPs `setEnabled(false)` on `Certificate_password` when `UniVPNCS` reports the `.p12` needs no password, so the *New Connection* field stays editable; its label reads **Password (optional)**. |
+| 11 | **Long Certificate Names / Passwords** | `UniVPN` | `0x7926d`, `0x82520`, `0x82543`, `0x87a4c`, `0x87a73` | `be 20 00 00 00` | `be 00 04 00 00` | Raises the copy limit of the `.p12` name and password sent to `UniVPNCS` from 32 to 1024 bytes. Longer names (e.g. `BCC-67402-Ahmad_Umar_Mahdi_with_pass.p12`) arrived empty, so the password was never verified or saved to `certinfo.txt` and the Login dialog skipped the certificate. |
 
 ---
 
@@ -69,6 +70,12 @@ NOPed out 5 bytes (`90 90 90 90 90`) at each call site loading `UI_MAIN_CONNECTI
 - **Location:** `ProfileInfoUI` certificate-password check (`[certificate passwd Isneed][msg is`)
 - **Original:** `e8 37 a0 fa ff` (`call QWidget::setEnabled(false)` on `Certificate_password` when the answer is 0)
 - **Patched:** `90 90 90 90 90`; the field is still disabled while *Certificate Authentication* is unchecked.
+
+### 9. Long Certificate Names and Passwords (`0x7926d`, `0x82520`, `0x82543`, `0x87a4c`, `0x87a73`)
+- **Location:** `ProfileInfoUI` password check and the two *Connect Save* paths, which fill a `0x804`-byte request (name at `+0`, password at `+0x400`) for `UniVPNCS`
+- **Original:** `be 20 00 00 00` (`strncpy_s(dst, 0x20, src, len)`: anything of 32+ bytes is dropped, leaving an empty string)
+- **Patched:** `be 00 04 00 00` (limit `0x400`, the real field size)
+- **Symptom:** `UniVPNCS` logged `[get cert failed][Error reading PKCS#12 filen]` (it opened the certificate *folder*), the password was never written to `certinfo.txt`, and the Login dialog dropped the certificate with `[Error parsing PKCS#12 filen]`.
 
 ---
 
