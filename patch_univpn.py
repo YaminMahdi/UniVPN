@@ -70,6 +70,20 @@ PATCHES = {
     0x82543: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate password (save)"),
     0x87a4c: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate name (save 2)"),
     0x87a73: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Long certificate password (save 2)"),
+
+    # Feature 12: The IPC packer for that request copied only 32 bytes.
+    # The certificate check request (UniVPN -> UniVPNCS) used memcpy_s(dst, 0x20,
+    # src, 0x20) for the name and password, so names of 32+ characters reached
+    # the service cut off and it could not open the .p12. The reply copy had
+    # the same limits. Raise all of them to the 0x400-byte field size.
+    0x11e7b4: (b'\xb9\x20\x00\x00\x00', b'\xb9\x00\x04\x00\x00', "Request: certificate name count"),
+    0x11e7b9: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Request: certificate name size"),
+    0x11e7de: (b'\xb9\x20\x00\x00\x00', b'\xb9\x00\x04\x00\x00', "Request: certificate password count"),
+    0x11e7e3: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Request: certificate password size"),
+    0x11e8aa: (b'\xb9\x20\x00\x00\x00', b'\xb9\x00\x04\x00\x00', "Reply: certificate name count"),
+    0x11e8af: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Reply: certificate name size"),
+    0x11e8d4: (b'\xb9\x20\x00\x00\x00', b'\xb9\x00\x04\x00\x00', "Reply: certificate password count"),
+    0x11e8d9: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Reply: certificate password size"),
 }
 
 def check(file_path):
