@@ -86,7 +86,30 @@ PATCHES = {
     0x11e8d9: (b'\xbe\x20\x00\x00\x00', b'\xbe\x00\x04\x00\x00', "Reply: certificate password size"),
 }
 
+# Patches for serviceclient/UniVPNCS (the root service). Selected when the
+# target's file name starts with "UniVPNCS".
+SERVICE_PATCHES = {
+    # Feature 13: certinfo.txt entries for certificate names of 32+ characters.
+    # The reader (0x41b37d) parses each "name&password" line with
+    # sscanf_s(line, "%[^&]&%[^\n]\n", name, 0x20, pass, 0x20) into a 32-byte
+    # stack buffer, so a longer name never matched and the Login dialog could
+    # not open a password-protected .p12. Grow the frame by 0x100 and move the
+    # name buffer to the new space at (%rsp), 256 bytes.
+    0x41b385: (b'\x48\x81\xec\x90\x00\x00\x00', b'\x48\x81\xec\x90\x01\x00\x00', "certinfo reader: frame 0x90 -> 0x190"),
+    0x41b3e8: (b'\x48\xc7\x45\xb0\x00\x00\x00\x00', b'\x48\xc7\x04\x24\x00\x00\x00\x00', "certinfo reader: clear the name buffer"),
+    0x41b57e: (b'\x48\x8d\x55\xb0', b'\x48\x8d\x14\x24', "certinfo reader: parse the name into (%rsp)"),
+    0x41b58f: (b'\xb9\x20\x00\x00\x00', b'\xb9\x00\x01\x00\x00', "certinfo reader: name size 0x20 -> 0x100"),
+    0x41b5ad: (b'\x48\x8d\x55\xb0', b'\x48\x8d\x14\x24', "certinfo reader: log the name"),
+    0x41b5d9: (b'\x48\x8d\x45\xb0', b'\x48\x8d\x04\x24', "certinfo reader: compare the name"),
+}
+
+def table_for(file_path):
+    if os.path.basename(file_path).startswith('UniVPNCS'):
+        return SERVICE_PATCHES
+    return PATCHES
+
 def check(file_path):
+    table = table_for(file_path)
     with open(file_path, 'rb') as f:
         data = f.read()
 
@@ -94,7 +117,7 @@ def check(file_path):
     patched_count = 0
     clean_count = 0
 
-    for off, (orig, patch, desc) in sorted(PATCHES.items()):
+    for off, (orig, patch, desc) in sorted(table.items()):
         curr = data[off:off+len(orig)]
         if curr == patch:
             status = "[PATCHED]"
@@ -106,14 +129,15 @@ def check(file_path):
             status = f"[UNKNOWN: {curr.hex()}]"
         print(f"  0x{off:06x}: {status:12s} {desc}")
 
-    print(f"\nSummary: {patched_count}/{len(PATCHES)} patches applied, {clean_count}/{len(PATCHES)} original clean.")
+    print(f"\nSummary: {patched_count}/{len(table)} patches applied, {clean_count}/{len(table)} original clean.")
 
 def apply(file_path):
+    table = table_for(file_path)
     with open(file_path, 'rb') as f:
         buf = bytearray(f.read())
 
     applied = 0
-    for off, (orig, patch, desc) in sorted(PATCHES.items()):
+    for off, (orig, patch, desc) in sorted(table.items()):
         curr = buf[off:off+len(orig)]
         if curr == patch:
             continue
@@ -128,11 +152,12 @@ def apply(file_path):
     print(f"Successfully applied {applied} patches to '{file_path}'.")
 
 def revert(file_path):
+    table = table_for(file_path)
     with open(file_path, 'rb') as f:
         buf = bytearray(f.read())
 
     reverted = 0
-    for off, (orig, patch, desc) in sorted(PATCHES.items()):
+    for off, (orig, patch, desc) in sorted(table.items()):
         curr = buf[off:off+len(orig)]
         if curr == orig:
             continue
@@ -152,21 +177,23 @@ if __name__ == '__main__':
         print("  python3 patch_univpn.py check  [path/to/UniVPN]")
         print("  python3 patch_univpn.py apply  [path/to/UniVPN]")
         print("  python3 patch_univpn.py revert [path/to/UniVPN]")
+        print("Without a path: UniVPN and serviceclient/UniVPNCS next to this script.")
+        print("A path whose file name starts with UniVPNCS gets the service patches.")
         sys.exit(0)
 
     cmd = sys.argv[1].lower()
-    target = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), 'UniVPN')
-
-    if not os.path.isfile(target):
-        print(f"Error: target file '{target}' not found.")
-        sys.exit(1)
-
-    if cmd == 'check':
-        check(target)
-    elif cmd == 'apply':
-        apply(target)
-    elif cmd == 'revert':
-        revert(target)
+    if len(sys.argv) > 2:
+        targets = [sys.argv[2]]
     else:
+        here = os.path.dirname(os.path.abspath(__file__))
+        targets = [os.path.join(here, 'UniVPN'), os.path.join(here, 'serviceclient', 'UniVPNCS')]
+    actions = {'check': check, 'apply': apply, 'revert': revert}
+    if cmd not in actions:
         print(f"Unknown command: '{cmd}'")
         sys.exit(1)
+
+    for target in targets:
+        if not os.path.isfile(target):
+            print(f"Error: target file '{target}' not found.")
+            sys.exit(1)
+        actions[cmd](target)
